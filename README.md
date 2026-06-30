@@ -57,6 +57,20 @@ This notebook scans the local checkout for files beginning with `ukhsa-chart`, i
 src/wastewater/ukhsa.py
 ```
 
+## Search terms / GP admissions regression
+
+For search-term files whose names begin with `time_series_GB`, open:
+
+```text
+notebooks/04_search_terms_gp_admissions_regression.ipynb
+```
+
+This notebook scans the local checkout for `time_series_GB*` files, infers date and count columns, aggregates search-term counts, and regresses GP admissions on contemporaneous and lagged search-term counts. The supporting code lives in:
+
+```text
+src/wastewater/search_terms.py
+```
+
 ## NHS England clinical downloader workflow
 
 A separate NHS England downloader workflow is also available. Download NHS England clinical activity data with:
