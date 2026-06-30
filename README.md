@@ -43,6 +43,36 @@ notebooks/01_wastewater_analysis.ipynb
 
 The first notebook inventories `data/raw/`, inspects source schemas, defines a canonical long-format target, and provides placeholders for country-specific cleaning adapters.
 
+## Predictive vs predicted train-test matrix
+
+To run chronological train-test regressions across every automatically available predictive/predicted pair, open:
+
+```text
+notebooks/05_predictive_vs_predicted_train_test_matrix.ipynb
+```
+
+This workflow currently treats these as predictive series:
+
+- Google Trends one-year files in `Google_trends_v2/1y_data/time_series_GB*`
+- UKHSA charts classified as NHS-call series
+- processed wastewater long-format data, if `data/processed/wastewater_long.{parquet,csv}` exists
+
+and these as predicted series:
+
+- UKHSA charts classified as GP/admission series
+
+It writes ranked held-out results to:
+
+```text
+data/processed/predictive_vs_predicted_train_test_results.csv
+```
+
+The supporting code lives in:
+
+```text
+src/wastewater/regression_matrix.py
+```
+
 ## UKHSA NHS calls / GP admissions regression
 
 For the existing UKHSA dashboard export files in the repo, open:
