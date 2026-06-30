@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "country": "France",
+    "pathogen_scope": "SARS-CoV-2 indicators",
+    "level": "stations",
+    "format": "csv",
+    "url": "https://odisse.santepubliquefrance.fr/api/explore/v2.1/catalog/datasets/sum-eau-indicateurs/exports/csv?lang=fr&timezone=Europe%2FParis&use_labels=true&delimiter=%3B",
+    "filename": "france_sumeau_indicators.csv",
+    "downloaded_at_utc": "2026-06-30T09:52:00Z",
+    "status": "failed",
+    "size_bytes": "",
+    "sha256": "",
+    "error": "TimeoutError('The read operation timed out')"
+  },
+  {
+    "country": "France",
+    "pathogen_scope": "SARS-CoV-2 indicators",
+    "level": "stations",
+    "format": "json",
+    "url": "https://odisse.santepubliquefrance.fr/api/explore/v2.1/catalog/datasets/sum-eau-indicateurs/exports/json?lang=fr&timezone=Europe%2FParis&use_labels=true",
+    "filename": "france_sumeau_indicators.json",
+    "downloaded_at_utc": "2026-06-30T09:55:01Z",
+    "status": "failed",
+    "size_bytes": "",
+    "sha256": "",
+    "error": "TimeoutError('The read operation timed out')"
+  },
+  {
+    "country": "France",
+    "pathogen_scope": "stations metadata",
+    "level": "stations",
+    "format": "csv",
+    "url": "https://odisse.santepubliquefrance.fr/api/explore/v2.1/catalog/datasets/sumeau_stations/exports/csv?lang=fr&timezone=Europe%2FParis&use_labels=true&delimiter=%3B",
+    "filename": "france_sumeau_stations.csv",
+    "downloaded_at_utc": "2026-06-30T09:58:01Z",
+    "status": "failed",
+    "size_bytes": "",
+    "sha256": "",
+    "error": "TimeoutError('The read operation timed out')"
+  }
+]
