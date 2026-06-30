@@ -1,9 +1,9 @@
 """Regression helpers for search-term time-series files.
 
-Search-term files are expected to have filenames beginning with ``time_series_GB``.
-These helpers scan a local checkout, load the files, infer date and count/value
-columns, aggregate search-term counts, and build regression frames against UKHSA
-GP/admission chart series.
+Search-term files are expected to have filenames beginning with ``time_series_GB``
+and to contain a source column called ``count``. These helpers scan a local
+checkout, load the files, use the ``count`` column as the search-volume
+predictor, and build regression frames against UKHSA GP/admission chart series.
 """
 from __future__ import annotations
 
@@ -77,17 +77,15 @@ def infer_date_column(df: pd.DataFrame) -> str:
     raise ValueError(f"Could not infer date column from columns={list(df.columns)}")
 
 
-def numeric_columns(df: pd.DataFrame) -> list[str]:
-    """Return columns that can plausibly be interpreted as numeric counts/indices."""
-    cols: list[str] = []
-    for col in df.columns:
-        name = str(col).lower()
-        if any(term in name for term in ["date", "week", "month", "year", "time"]):
-            continue
-        values = pd.to_numeric(df[col].astype(str).str.replace(",", "", regex=False), errors="coerce")
-        if values.notna().sum() >= max(3, len(values) // 3):
-            cols.append(col)
-    return cols
+def require_count_column(df: pd.DataFrame, rel_path: str, count_column: str = "count") -> str:
+    """Return the source count column, raising clearly if it is unavailable."""
+    count_column = count_column.lower()
+    if count_column not in df.columns:
+        raise ValueError(
+            f"Expected a '{count_column}' column in {rel_path}; "
+            f"available columns={list(df.columns)}"
+        )
+    return count_column
 
 
 def infer_search_term_from_filename(path: Path) -> str:
@@ -98,46 +96,36 @@ def infer_search_term_from_filename(path: Path) -> str:
     return stem or Path(path).stem
 
 
-def search_file_to_long(root: Path, rel_path: str, value_columns: Sequence[str] | None = None) -> pd.DataFrame:
-    """Convert one search-term file to long format.
+def search_file_to_long(root: Path, rel_path: str, count_column: str = "count") -> pd.DataFrame:
+    """Convert one search-term file to long format using its ``count`` column.
 
-    If multiple numeric columns exist, each is treated as a separate term/count
-    series. If exactly one numeric column exists, the term name is inferred from
-    the filename.
+    The source ``count`` column is the only search-volume predictor used here.
+    Other numeric columns, if present, are ignored unless this function is
+    intentionally changed.
     """
     path = Path(root) / rel_path
     df = read_search_term_file(path)
     date_col = infer_date_column(df)
-    value_columns = list(value_columns) if value_columns is not None else numeric_columns(df)
-    if not value_columns:
-        raise ValueError(f"No numeric count/value columns found in {rel_path}; columns={list(df.columns)}")
+    value_col = require_count_column(df, rel_path, count_column=count_column)
 
-    parts: list[pd.DataFrame] = []
-    for value_col in value_columns:
-        values = pd.to_numeric(df[value_col].astype(str).str.replace(",", "", regex=False), errors="coerce")
-        if len(value_columns) == 1:
-            term = infer_search_term_from_filename(path)
-        else:
-            term = str(value_col)
-        part = pd.DataFrame(
-            {
-                "date": pd.to_datetime(df[date_col], errors="coerce"),
-                "search_term": term,
-                "count": values,
-                "source_file": rel_path,
-                "date_column": date_col,
-                "value_column": value_col,
-            }
-        ).dropna(subset=["date", "count"])
-        parts.append(part)
+    values = pd.to_numeric(df[value_col].astype(str).str.replace(",", "", regex=False), errors="coerce")
+    out = pd.DataFrame(
+        {
+            "date": pd.to_datetime(df[date_col], errors="coerce"),
+            "search_term": infer_search_term_from_filename(path),
+            "count": values,
+            "source_file": rel_path,
+            "date_column": date_col,
+            "value_column": value_col,
+        }
+    ).dropna(subset=["date", "count"])
 
-    out = pd.concat(parts, ignore_index=True)
     out["week"] = out["date"].dt.to_period("W").dt.start_time
     out["month"] = out["date"].dt.to_period("M").dt.to_timestamp()
     return out
 
 
-def build_search_term_catalogue(root: Path) -> pd.DataFrame:
+def build_search_term_catalogue(root: Path, count_column: str = "count") -> pd.DataFrame:
     """Return file metadata plus inferred schema for every search-term file."""
     files = find_search_term_files(root)
     rows: list[dict] = []
@@ -145,16 +133,16 @@ def build_search_term_catalogue(root: Path) -> pd.DataFrame:
         try:
             df = read_search_term_file(Path(root) / row["path"])
             date_col = infer_date_column(df)
-            value_cols = numeric_columns(df)
+            has_count = count_column in df.columns
             rows.append(
                 {
                     **row,
                     "date_column": date_col,
-                    "value_columns": value_cols,
-                    "n_value_columns": len(value_cols),
+                    "count_column": count_column if has_count else "",
+                    "has_count_column": has_count,
                     "columns": list(df.columns),
-                    "status": "ok",
-                    "error": "",
+                    "status": "ok" if has_count else "error",
+                    "error": "" if has_count else f"Missing required '{count_column}' column",
                 }
             )
         except Exception as exc:
@@ -162,8 +150,8 @@ def build_search_term_catalogue(root: Path) -> pd.DataFrame:
                 {
                     **row,
                     "date_column": "",
-                    "value_columns": [],
-                    "n_value_columns": 0,
+                    "count_column": "",
+                    "has_count_column": False,
                     "columns": [],
                     "status": "error",
                     "error": repr(exc),
@@ -210,14 +198,19 @@ def build_search_term_regression_frame(
     freq: str = "W",
     lags: Iterable[int] = (0, 1, 2, 3, 4),
     aggregate_terms: bool = True,
+    count_column: str = "count",
 ) -> pd.DataFrame:
     """Build a lagged regression frame for search-term counts vs GP admissions.
 
     Parameters
     ----------
     aggregate_terms:
-        If True, all search-term counts are summed into ``search_count`` before
-        lagging. If False, each term is pivoted into separate predictors.
+        If True, all source ``count`` values are summed into ``search_count``
+        before lagging. If False, each search term is pivoted into separate
+        predictors, still using the source ``count`` column.
+    count_column:
+        Source column to use as the search-volume predictor. Defaults to
+        ``count`` and raises if that column is absent.
     """
     root = Path(root)
     if search_files is None:
@@ -225,7 +218,7 @@ def build_search_term_regression_frame(
     if not search_files:
         raise ValueError("No search-term files matching time_series_GB* were found.")
 
-    terms = pd.concat([search_file_to_long(root, p) for p in search_files], ignore_index=True)
+    terms = pd.concat([search_file_to_long(root, p, count_column=count_column) for p in search_files], ignore_index=True)
     period_col = "week" if freq.upper().startswith("W") else "month"
     outcome = build_gp_admissions_series_from_ukhsa(root, outcome_files=outcome_files, freq=freq)
 
