@@ -2,7 +2,7 @@
 
 Public source catalogue, reproducible downloader, and analysis notebooks for viral-load data on respiratory pathogens in wastewater, focused on Western European countries.
 
-The repository is designed to be refreshed from source rather than maintained by hand. The authoritative sources are listed in `sources.csv`; `scripts/download_all.py` downloads them into `data/raw/` and writes `manifest.json` plus `download_failures.json`.
+The repository is designed to be refreshed from source rather than maintained by hand. The authoritative wastewater sources are listed in `sources.csv`; `scripts/download_all.py` downloads them into `data/raw/` and writes `manifest.json` plus `download_failures.json`.
 
 ## Included source types
 
@@ -15,13 +15,22 @@ Current sources include wastewater viral-load or wastewater RNA datasets for:
 - Netherlands: SARS-CoV-2 wastewater data
 - Scotland: SARS-CoV-2 wastewater RNA
 
+Additional predictive and predicted source catalogues are listed in:
+
+```text
+predictive_sources.csv
+predicted_sources.csv
+```
+
 ## Refresh the data
 
 ```bash
 python scripts/download_all.py
+python scripts/download_clinical_data.py
+python scripts/download_external_respiratory_sources.py
 ```
 
-The script continues after individual download failures and records them in `download_failures.json`.
+The wastewater downloader continues after individual download failures and records them in `download_failures.json`. The external downloader currently fetches no-key sources that can be automated immediately, including OWID COVID data and Open-Meteo historical weather for UK nation / England-region centroids.
 
 ## Analyse the data
 
@@ -42,6 +51,27 @@ notebooks/01_wastewater_analysis.ipynb
 ```
 
 The first notebook inventories `data/raw/`, inspects source schemas, defines a canonical long-format target, and provides placeholders for country-specific cleaning adapters.
+
+## Respiratory incidence ML panel
+
+To train multiple machine-learning models on the larger predictive/predicted respiratory-virus panel, open:
+
+```text
+notebooks/06_respiratory_incidence_ml_panel.ipynb
+```
+
+This notebook gathers currently available canonical series, builds lagged features, and compares OLS, ridge, elastic net, random forest, and histogram gradient boosting under a chronological train-test split. Outputs are written to:
+
+```text
+data/processed/respiratory_incidence_ml_model_results.csv
+data/processed/respiratory_incidence_ml_model_predictions.csv
+```
+
+The supporting code lives in:
+
+```text
+src/wastewater/ml_panel.py
+```
 
 ## Predictive vs predicted train-test matrix
 
