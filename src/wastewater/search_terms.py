@@ -1,9 +1,10 @@
 """Regression helpers for search-term time-series files.
 
-Search-term files are expected to have filenames beginning with ``time_series_GB``
-and to contain a source column called ``count``. These helpers scan a local
-checkout, load the files, use the ``count`` column as the search-volume
-predictor, and build regression frames against UKHSA GP/admission chart series.
+Search-term files are expected to have filenames beginning with ``time_series_GB``.
+The search-volume predictor is always the second source column by position,
+regardless of the column name. These helpers scan a local checkout, load the
+files, coerce that second column to a canonical ``count`` field, and build
+regression frames against UKHSA GP/admission chart series.
 """
 from __future__ import annotations
 
@@ -77,15 +78,20 @@ def infer_date_column(df: pd.DataFrame) -> str:
     raise ValueError(f"Could not infer date column from columns={list(df.columns)}")
 
 
-def require_count_column(df: pd.DataFrame, rel_path: str, count_column: str = "count") -> str:
-    """Return the source count column, raising clearly if it is unavailable."""
-    count_column = count_column.lower()
-    if count_column not in df.columns:
+def second_source_column(df: pd.DataFrame, rel_path: str, value_column_index: int = 1) -> str:
+    """Return the predictor column selected by source-column position.
+
+    By default, ``value_column_index=1`` selects the second source column after
+    reading and column normalisation. This matches the search-trends exports in
+    this repository, where the predictive count field is always the second
+    column but may have different names across files.
+    """
+    if len(df.columns) <= value_column_index:
         raise ValueError(
-            f"Expected a '{count_column}' column in {rel_path}; "
+            f"Expected at least {value_column_index + 1} columns in {rel_path}; "
             f"available columns={list(df.columns)}"
         )
-    return count_column
+    return str(df.columns[value_column_index])
 
 
 def infer_search_term_from_filename(path: Path) -> str:
@@ -96,17 +102,16 @@ def infer_search_term_from_filename(path: Path) -> str:
     return stem or Path(path).stem
 
 
-def search_file_to_long(root: Path, rel_path: str, count_column: str = "count") -> pd.DataFrame:
-    """Convert one search-term file to long format using its ``count`` column.
+def search_file_to_long(root: Path, rel_path: str, value_column_index: int = 1) -> pd.DataFrame:
+    """Convert one search-term file to long format using its second column.
 
-    The source ``count`` column is the only search-volume predictor used here.
-    Other numeric columns, if present, are ignored unless this function is
-    intentionally changed.
+    The selected source column is stored in ``value_column`` for traceability,
+    but the canonical predictor column is always named ``count`` downstream.
     """
     path = Path(root) / rel_path
     df = read_search_term_file(path)
     date_col = infer_date_column(df)
-    value_col = require_count_column(df, rel_path, count_column=count_column)
+    value_col = second_source_column(df, rel_path, value_column_index=value_column_index)
 
     values = pd.to_numeric(df[value_col].astype(str).str.replace(",", "", regex=False), errors="coerce")
     out = pd.DataFrame(
@@ -117,6 +122,7 @@ def search_file_to_long(root: Path, rel_path: str, count_column: str = "count") 
             "source_file": rel_path,
             "date_column": date_col,
             "value_column": value_col,
+            "value_column_index": value_column_index,
         }
     ).dropna(subset=["date", "count"])
 
@@ -125,7 +131,7 @@ def search_file_to_long(root: Path, rel_path: str, count_column: str = "count") 
     return out
 
 
-def build_search_term_catalogue(root: Path, count_column: str = "count") -> pd.DataFrame:
+def build_search_term_catalogue(root: Path, value_column_index: int = 1) -> pd.DataFrame:
     """Return file metadata plus inferred schema for every search-term file."""
     files = find_search_term_files(root)
     rows: list[dict] = []
@@ -133,16 +139,19 @@ def build_search_term_catalogue(root: Path, count_column: str = "count") -> pd.D
         try:
             df = read_search_term_file(Path(root) / row["path"])
             date_col = infer_date_column(df)
-            has_count = count_column in df.columns
+            value_col = second_source_column(df, row["path"], value_column_index=value_column_index)
+            values = pd.to_numeric(df[value_col].astype(str).str.replace(",", "", regex=False), errors="coerce")
+            usable_values = int(values.notna().sum())
             rows.append(
                 {
                     **row,
                     "date_column": date_col,
-                    "count_column": count_column if has_count else "",
-                    "has_count_column": has_count,
+                    "predictor_column_index": value_column_index,
+                    "predictor_column": value_col,
+                    "usable_predictor_values": usable_values,
                     "columns": list(df.columns),
-                    "status": "ok" if has_count else "error",
-                    "error": "" if has_count else f"Missing required '{count_column}' column",
+                    "status": "ok" if usable_values > 0 else "error",
+                    "error": "" if usable_values > 0 else f"Second column '{value_col}' has no numeric values",
                 }
             )
         except Exception as exc:
@@ -150,8 +159,9 @@ def build_search_term_catalogue(root: Path, count_column: str = "count") -> pd.D
                 {
                     **row,
                     "date_column": "",
-                    "count_column": "",
-                    "has_count_column": False,
+                    "predictor_column_index": value_column_index,
+                    "predictor_column": "",
+                    "usable_predictor_values": 0,
                     "columns": [],
                     "status": "error",
                     "error": repr(exc),
@@ -198,19 +208,19 @@ def build_search_term_regression_frame(
     freq: str = "W",
     lags: Iterable[int] = (0, 1, 2, 3, 4),
     aggregate_terms: bool = True,
-    count_column: str = "count",
+    value_column_index: int = 1,
 ) -> pd.DataFrame:
     """Build a lagged regression frame for search-term counts vs GP admissions.
 
     Parameters
     ----------
     aggregate_terms:
-        If True, all source ``count`` values are summed into ``search_count``
-        before lagging. If False, each search term is pivoted into separate
-        predictors, still using the source ``count`` column.
-    count_column:
-        Source column to use as the search-volume predictor. Defaults to
-        ``count`` and raises if that column is absent.
+        If True, all second-column values are summed into ``search_count`` before
+        lagging. If False, each search term is pivoted into separate predictors,
+        still using the second source column from each file.
+    value_column_index:
+        Zero-based source-column index to use as the search-volume predictor.
+        The default, 1, means the second column.
     """
     root = Path(root)
     if search_files is None:
@@ -218,7 +228,7 @@ def build_search_term_regression_frame(
     if not search_files:
         raise ValueError("No search-term files matching time_series_GB* were found.")
 
-    terms = pd.concat([search_file_to_long(root, p, count_column=count_column) for p in search_files], ignore_index=True)
+    terms = pd.concat([search_file_to_long(root, p, value_column_index=value_column_index) for p in search_files], ignore_index=True)
     period_col = "week" if freq.upper().startswith("W") else "month"
     outcome = build_gp_admissions_series_from_ukhsa(root, outcome_files=outcome_files, freq=freq)
 
