@@ -1,0 +1,36 @@
+name: Extract Belgium ZIPs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/extract-belgium-zips.yml"
+      - "scripts/extract_existing_belgium_zips.py"
+      - "data/raw/belgium_*.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Extract Belgium ZIPs already in repository
+        run: python scripts/extract_existing_belgium_zips.py
+      - name: Commit extracted Belgium files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/raw/belgium_sars_cov_2 \
+            data/raw/belgium_influenza \
+            data/raw/belgium_rsv \
+            belgium_extraction_manifest.json
+          git commit -m "Extract Belgium wastewater ZIP files" || echo "No extracted Belgium changes to commit"
+          git push
