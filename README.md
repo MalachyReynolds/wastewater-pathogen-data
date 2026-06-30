@@ -57,15 +57,21 @@ This notebook scans the local checkout for files beginning with `ukhsa-chart`, i
 src/wastewater/ukhsa.py
 ```
 
-## Search terms / GP admissions regression
+## Google Trends 1-year / GP admissions regression
 
-For search-term files whose names begin with `time_series_GB`, open:
+For the one-year Google Trends search-term files under:
+
+```text
+Google_trends_v2/1y_data/
+```
+
+open:
 
 ```text
 notebooks/04_search_terms_gp_admissions_regression.ipynb
 ```
 
-This notebook scans the local checkout for `time_series_GB*` files, infers date and count columns, aggregates search-term counts, and regresses GP admissions on contemporaneous and lagged search-term counts. The supporting code lives in:
+This notebook scans `Google_trends_v2/1y_data` for `time_series_GB*` files, uses the second source column from each file as a Google Trends predictor, and regresses GP admissions on contemporaneous and lagged Google Trends predictors. The supporting code lives in:
 
 ```text
 src/wastewater/search_terms.py
