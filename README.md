@@ -71,7 +71,7 @@ open:
 notebooks/04_search_terms_gp_admissions_regression.ipynb
 ```
 
-This notebook scans `Google_trends_v2/1y_data` for `time_series_GB*` files, uses the second source column from each file as a Google Trends predictor, and regresses GP admissions on contemporaneous and lagged Google Trends predictors. The supporting code lives in:
+This notebook scans `Google_trends_v2/1y_data` for `time_series_GB*` files, uses the second source column from each file as a Google Trends predictor, and regresses GP admissions on contemporaneous and lagged Google Trends predictors. It includes a chronological train-test split to check held-out predictive performance, reporting RMSE, MAE, R², correlation, and improvement over a training-mean baseline. The supporting code lives in:
 
 ```text
 src/wastewater/search_terms.py
