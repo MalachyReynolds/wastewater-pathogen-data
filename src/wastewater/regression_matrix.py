@@ -9,6 +9,7 @@ Current automatic sources
 Predictive:
 - Google Trends one-year files in ``Google_trends_v2/1y_data/time_series_GB*``
 - UKHSA dashboard files classified as NHS-call series
+- raw wastewater files listed in ``sources.csv`` and stored under ``data/raw``
 - processed wastewater long-format data, if available in ``data/processed``
 
 Predicted:
@@ -27,6 +28,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
+from .io import load_sources, read_table, read_zip_tables
 from .search_terms import (
     DEFAULT_SEARCH_TERMS_DIR,
     find_search_term_files,
@@ -68,6 +70,20 @@ def _coerce_series_frame(
     return out
 
 
+def _normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise raw source column names for robust inference."""
+    out = df.copy()
+    out.columns = (
+        pd.Index(out.columns)
+        .astype(str)
+        .str.strip()
+        .str.replace(r"[^0-9A-Za-z]+", "_", regex=True)
+        .str.strip("_")
+        .str.lower()
+    )
+    return out
+
+
 def load_google_trends_1y_series(
     root: Path,
     search_dir: str | Path = DEFAULT_SEARCH_TERMS_DIR,
@@ -89,8 +105,6 @@ def load_google_trends_1y_series(
             )
             series.append(_coerce_series_frame(long, spec=spec, value_col="count"))
         except Exception:
-            # Keep the matrix runner robust: bad files are visible in the source
-            # catalogue notebook cells but should not stop all regressions.
             continue
     return series
 
@@ -120,6 +134,214 @@ def load_ukhsa_series(root: Path, series_type: str, role: str, dataset_family: s
     return series
 
 
+def _infer_raw_date_column(df: pd.DataFrame) -> str | None:
+    candidates = [
+        "date",
+        "sample_date",
+        "sampling_date",
+        "collection_date",
+        "week",
+        "week_start",
+        "week_ending",
+        "datum",
+        "date_start",
+        "month",
+        "period",
+        "time",
+    ]
+    for col in candidates:
+        if col in df.columns and pd.to_datetime(df[col], errors="coerce").notna().any():
+            return col
+    for col in df.columns:
+        parsed = pd.to_datetime(df[col], errors="coerce")
+        if parsed.notna().sum() >= max(3, len(df) // 4):
+            return col
+    return None
+
+
+def _raw_value_column_score(name: str) -> int:
+    positive_terms = [
+        "value",
+        "viral",
+        "virus",
+        "load",
+        "rna",
+        "gene",
+        "copies",
+        "copy",
+        "concentration",
+        "gc",
+        "mgc",
+        "signal",
+        "indicator",
+        "average",
+        "mean",
+        "sars",
+        "cov",
+        "influenza",
+        "flu",
+        "rsv",
+        "niv",
+        "variant",
+    ]
+    negative_terms = [
+        "id",
+        "code",
+        "date",
+        "week",
+        "month",
+        "year",
+        "day",
+        "population",
+        "pop",
+        "lat",
+        "lon",
+        "long",
+        "latitude",
+        "longitude",
+        "x",
+        "y",
+        "postcode",
+        "postal",
+    ]
+    lower = name.lower()
+    if any(term == lower or lower.endswith("_" + term) or lower.startswith(term + "_") for term in negative_terms):
+        return -10
+    return sum(term in lower for term in positive_terms)
+
+
+def _infer_raw_value_columns(df: pd.DataFrame, date_col: str, max_columns: int = 3) -> list[str]:
+    scored: list[tuple[int, str]] = []
+    for col in df.columns:
+        if col == date_col:
+            continue
+        values = pd.to_numeric(df[col].astype(str).str.replace(",", "", regex=False), errors="coerce")
+        if values.notna().sum() < max(3, len(df) // 5):
+            continue
+        score = _raw_value_column_score(str(col))
+        if score < 0:
+            continue
+        scored.append((score, str(col)))
+
+    if not scored:
+        return []
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    positive = [col for score, col in scored if score > 0]
+    if positive:
+        return positive[:max_columns]
+    return [col for _, col in scored[:max_columns]]
+
+
+def _raw_table_to_series(
+    df: pd.DataFrame,
+    *,
+    country: str,
+    pathogen_scope: str,
+    level: str,
+    source_file: str,
+    table_name: str,
+    max_value_columns: int = 3,
+) -> list[pd.DataFrame]:
+    """Convert one raw wastewater table into one or more predictive series."""
+    if df is None or df.empty:
+        return []
+    table = _normalise_columns(df)
+    date_col = _infer_raw_date_column(table)
+    if date_col is None:
+        return []
+    value_cols = _infer_raw_value_columns(table, date_col=date_col, max_columns=max_value_columns)
+    if not value_cols:
+        return []
+
+    series: list[pd.DataFrame] = []
+    for value_col in value_cols:
+        series_name = " / ".join(
+            part for part in [country, pathogen_scope, level, table_name, value_col] if str(part).strip()
+        )
+        safe_name = series_name.replace("::", "_")
+        spec = SeriesSpec(
+            series_id=f"wastewater_raw::{safe_name}",
+            role="predictive",
+            dataset_family="wastewater_raw",
+            series_name=series_name,
+            source_file=source_file,
+        )
+        converted = pd.DataFrame(
+            {
+                "date": pd.to_datetime(table[date_col], errors="coerce"),
+                "value": pd.to_numeric(table[value_col].astype(str).str.replace(",", "", regex=False), errors="coerce"),
+            }
+        ).dropna(subset=["date", "value"])
+        if len(converted) >= 3:
+            series.append(_coerce_series_frame(converted, spec=spec))
+    return series
+
+
+def _iter_raw_wastewater_tables(root: Path) -> Iterable[tuple[dict, str, pd.DataFrame]]:
+    """Yield raw wastewater tables from sources.csv and data/raw.
+
+    The downloader stores raw files under ``data/raw``. ZIP sources may also have
+    extracted folders named after the ZIP stem, so both representations are
+    supported.
+    """
+    root = Path(root)
+    raw_dir = root / "data" / "raw"
+    try:
+        sources = load_sources(root)
+    except Exception:
+        return
+
+    for row in sources.to_dict(orient="records"):
+        filename = str(row.get("filename", "")).strip()
+        if not filename:
+            continue
+        path = raw_dir / filename
+        paths_to_try: list[Path] = []
+        if path.exists() and path.is_file():
+            paths_to_try.append(path)
+        extracted_dir = raw_dir / Path(filename).stem
+        if extracted_dir.exists() and extracted_dir.is_dir():
+            paths_to_try.extend(
+                sorted(p for p in extracted_dir.rglob("*") if p.is_file() and p.suffix.lower() in {".csv", ".tsv", ".json"})
+            )
+
+        for candidate in paths_to_try:
+            try:
+                if candidate.suffix.lower() == ".zip":
+                    for member, table in read_zip_tables(candidate).items():
+                        yield row, f"{candidate.name}:{member}", table
+                elif candidate.suffix.lower() in {".csv", ".tsv", ".json"}:
+                    yield row, candidate.relative_to(raw_dir).as_posix(), read_table(candidate)
+            except Exception:
+                continue
+
+
+def load_raw_wastewater_series(root: Path, max_value_columns_per_table: int = 3) -> list[pd.DataFrame]:
+    """Load raw wastewater files from ``data/raw`` as predictive series.
+
+    This is intentionally heuristic because upstream wastewater schemas differ
+    substantially by country. Tables with no parseable date/value columns are
+    skipped and the rest are exposed as candidate predictive series.
+    """
+    series: list[pd.DataFrame] = []
+    for row, table_name, table in _iter_raw_wastewater_tables(root):
+        try:
+            series.extend(
+                _raw_table_to_series(
+                    table,
+                    country=str(row.get("country", "")),
+                    pathogen_scope=str(row.get("pathogen_scope", "")),
+                    level=str(row.get("level", "")),
+                    source_file=str(row.get("filename", "")),
+                    table_name=table_name,
+                    max_value_columns=max_value_columns_per_table,
+                )
+            )
+        except Exception:
+            continue
+    return series
+
+
 def _read_processed_wastewater(root: Path) -> pd.DataFrame | None:
     processed = Path(root) / "data" / "processed"
     parquet = processed / "wastewater_long.parquet"
@@ -132,12 +354,7 @@ def _read_processed_wastewater(root: Path) -> pd.DataFrame | None:
 
 
 def load_processed_wastewater_series(root: Path) -> list[pd.DataFrame]:
-    """Load processed wastewater long-format data as predictive series if present.
-
-    This intentionally does not attempt to standardise heterogeneous raw
-    wastewater files. Run ``notebooks/01_wastewater_analysis.ipynb`` first to
-    create ``data/processed/wastewater_long``.
-    """
+    """Load processed wastewater long-format data as predictive series if present."""
     df = _read_processed_wastewater(root)
     if df is None or df.empty:
         return []
@@ -145,12 +362,7 @@ def load_processed_wastewater_series(root: Path) -> list[pd.DataFrame]:
     if "date" not in df.columns:
         return []
 
-    value_candidates = [
-        "normalised_value",
-        "zscore_within_series",
-        "log10_value",
-        "value",
-    ]
+    value_candidates = ["normalised_value", "zscore_within_series", "log10_value", "value"]
     value_col = next((col for col in value_candidates if col in df.columns), None)
     if value_col is None:
         return []
@@ -159,11 +371,7 @@ def load_processed_wastewater_series(root: Path) -> list[pd.DataFrame]:
     if not group_cols:
         group_cols = ["source_file"] if "source_file" in df.columns else []
 
-    if not group_cols:
-        groups = [("wastewater", df)]
-    else:
-        groups = df.groupby(group_cols, dropna=False)
-
+    groups = [("wastewater", df)] if not group_cols else df.groupby(group_cols, dropna=False)
     series: list[pd.DataFrame] = []
     for key, group in groups:
         if not isinstance(key, tuple):
@@ -188,6 +396,7 @@ def build_available_series(root: Path) -> pd.DataFrame:
     parts: list[pd.DataFrame] = []
     parts.extend(load_google_trends_1y_series(root))
     parts.extend(load_ukhsa_series(root, series_type="nhs_calls", role="predictive", dataset_family="ukhsa_nhs_calls"))
+    parts.extend(load_raw_wastewater_series(root))
     parts.extend(load_processed_wastewater_series(root))
     parts.extend(load_ukhsa_series(root, series_type="gp_admissions", role="predicted", dataset_family="ukhsa_gp_admissions"))
 
@@ -225,8 +434,13 @@ def expected_family_status(root: Path, series: pd.DataFrame) -> pd.DataFrame:
         },
         {
             "role": "predictive",
+            "dataset_family": "wastewater_raw",
+            "expected_location": "sources.csv filenames under data/raw/",
+        },
+        {
+            "role": "predictive",
             "dataset_family": "wastewater_processed",
-            "expected_location": "data/processed/wastewater_long.{parquet,csv}",
+            "expected_location": "optional data/processed/wastewater_long.{parquet,csv}",
         },
         {
             "role": "predicted",
@@ -326,8 +540,6 @@ def fit_pair_train_test(
 
     train_idx = model_df.index[:split_idx]
     test_idx = model_df.index[split_idx:]
-    train = model_df.loc[train_idx].copy()
-    test = model_df.loc[test_idx].copy()
 
     y_z, y_mean, y_std = _standardise_with_train(model_df["y"], train_idx)
     model_df["y_z"] = y_z
