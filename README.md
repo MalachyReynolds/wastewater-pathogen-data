@@ -43,9 +43,23 @@ notebooks/01_wastewater_analysis.ipynb
 
 The first notebook inventories `data/raw/`, inspects source schemas, defines a canonical long-format target, and provides placeholders for country-specific cleaning adapters.
 
-## NHS111 / admissions regression
+## UKHSA NHS calls / GP admissions regression
 
-Download NHS England clinical activity data with:
+For the existing UKHSA dashboard export files in the repo, open:
+
+```text
+notebooks/03_ukhsa_nhs111_gp_regression.ipynb
+```
+
+This notebook scans the local checkout for files beginning with `ukhsa-chart`, infers date and value columns, classifies files into NHS-call predictors and GP/admission outcomes, and fits lagged OLS regressions. The supporting code lives in:
+
+```text
+src/wastewater/ukhsa.py
+```
+
+## NHS England clinical downloader workflow
+
+A separate NHS England downloader workflow is also available. Download NHS England clinical activity data with:
 
 ```bash
 python scripts/download_clinical_data.py
@@ -62,8 +76,6 @@ Then open:
 ```text
 notebooks/02_nhs111_gp_regression.ipynb
 ```
-
-The notebook starts with a national monthly regression of admission activity on NHS111/IUC call activity and lagged call activity. If the intended outcome is a more specific GP measure, use the notebook's outcome-column selection step to swap in the relevant GP-related field.
 
 Reusable notebook helpers live in:
 
