@@ -1,0 +1,16 @@
+country,pathogen_scope,level,format,url,filename
+Switzerland-Liechtenstein,SARS-CoV-2 influenza RSV,national,csv,https://idd.bag.admin.ch/api/v1/export/latest/RESPVIRUSES_wastewater/csv,switzerland_liechtenstein_respiratory_wastewater.csv
+Germany,SARS-CoV-2 influenzaA influenzaB RSV-A RSV-B,aggregated,tsv,https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/main/amelag_aggregierte_kurve.tsv,germany_amelag_aggregated_curve.tsv
+Germany,SARS-CoV-2 influenzaA influenzaB RSV-A RSV-B,wwtp,tsv,https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/main/amelag_einzelstandorte.tsv,germany_amelag_individual_sites.tsv
+Belgium,SARS-CoV-2,wwtp,csv_zip,https://ac.ngi.be/remoteclient-open/GeoBePartners-open/Sciensano/9eec5acf-a2df-11ed-9952-186571a04de2_csv.zip,belgium_sars_cov_2.zip
+Belgium,influenza,wwtp,csv_zip,https://ac.ngi.be/remoteclient-open/GeoBePartners-open/Sciensano/a27da9c0-6c85-11f0-9e86-00be433d8c24_csv.zip,belgium_influenza.zip
+Belgium,RSV,wwtp,csv_zip,https://ac.ngi.be/remoteclient-open/GeoBePartners-open/Sciensano/e6681f9f-6c76-11f0-bb07-00be433d8c24_csv.zip,belgium_rsv.zip
+France,SARS-CoV-2 indicators,stations,csv,https://odisse.santepubliquefrance.fr/api/explore/v2.1/catalog/datasets/sum-eau-indicateurs/exports/csv?lang=fr&timezone=Europe%2FParis&use_labels=true&delimiter=%3B,france_sumeau_indicators.csv
+France,SARS-CoV-2 indicators,stations,json,https://odisse.santepubliquefrance.fr/api/explore/v2.1/catalog/datasets/sum-eau-indicateurs/exports/json?lang=fr&timezone=Europe%2FParis&use_labels=true,france_sumeau_indicators.json
+France,stations metadata,stations,csv,https://odisse.santepubliquefrance.fr/api/explore/v2.1/catalog/datasets/sumeau_stations/exports/csv?lang=fr&timezone=Europe%2FParis&use_labels=true&delimiter=%3B,france_sumeau_stations.csv
+Netherlands,SARS-CoV-2,wwtp,csv,https://data.rivm.nl/covid-19/COVID-19_rioolwaterdata.csv,netherlands_rivm_rioolwaterdata.csv
+Netherlands,SARS-CoV-2,wwtp,json,https://data.rivm.nl/covid-19/COVID-19_rioolwaterdata.json,netherlands_rivm_rioolwaterdata.json
+Netherlands,SARS-CoV-2,national,csv,https://data.rivm.nl/covid-19/COVID-19_rioolwaterdata_landelijk.csv,netherlands_rivm_national.csv
+Netherlands,SARS-CoV-2,national,json,https://data.rivm.nl/covid-19/COVID-19_rioolwaterdata_landelijk.json,netherlands_rivm_national.json
+Scotland,SARS-CoV-2,wwtp,csv,https://www.opendata.nhs.scot/dataset/49dc2d88-1cb0-4420-a5ea-d1bbada62fb2/resource/d53421a7-7467-425f-a7f8-22fa7e81add6/download/wastewater_covid19_by_wwtw_20260624.csv,scotland_wastewater_covid19_by_wwtw.csv
+Scotland,SARS-CoV-2,national,csv,https://www.opendata.nhs.scot/dataset/49dc2d88-1cb0-4420-a5ea-d1bbada62fb2/resource/f5b105ec-17e7-4f36-ab6e-935030651562/download/wastewater_covid19_scotland_20260624.csv,scotland_wastewater_covid19_national.csv
