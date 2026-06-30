@@ -55,7 +55,8 @@ This workflow currently treats these as predictive series:
 
 - Google Trends one-year files in `Google_trends_v2/1y_data/time_series_GB*`
 - UKHSA charts classified as NHS-call series
-- processed wastewater long-format data, if `data/processed/wastewater_long.{parquet,csv}` exists
+- raw wastewater files listed in `sources.csv` and stored under `data/raw/`
+- processed wastewater long-format data, if `data/processed/wastewater_long.{parquet,csv}` also exists
 
 and these as predicted series:
 
