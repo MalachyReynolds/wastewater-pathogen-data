@@ -1,6 +1,6 @@
 # Wastewater pathogen data
 
-Public source catalogue and reproducible downloader for viral-load data on respiratory pathogens in wastewater, focused on Western European countries.
+Public source catalogue, reproducible downloader, and analysis notebooks for viral-load data on respiratory pathogens in wastewater, focused on Western European countries.
 
 The repository is designed to be refreshed from source rather than maintained by hand. The authoritative sources are listed in `sources.csv`; `scripts/download_all.py` downloads them into `data/raw/` and writes `manifest.json` plus `download_failures.json`.
 
@@ -23,9 +23,37 @@ python scripts/download_all.py
 
 The script continues after individual download failures and records them in `download_failures.json`.
 
+## Analyse the data
+
+Create an environment, install dependencies, and open JupyterLab:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+jupyter lab
+```
+
+Then open:
+
+```text
+notebooks/01_wastewater_analysis.ipynb
+```
+
+The first notebook inventories `data/raw/`, inspects source schemas, defines a canonical long-format target, and provides placeholders for country-specific cleaning adapters.
+
+Reusable notebook helpers live in:
+
+```text
+src/wastewater/
+```
+
 ## GitHub Actions
 
 A weekly workflow is included at `.github/workflows/update-data.yml`. It can also be run manually from the Actions tab. The workflow downloads the latest raw files into `data/raw/` and commits any changes.
+
+The Belgium ZIP extraction workflow is included at `.github/workflows/extract-belgium-zips.yml` and can be run manually from the Actions tab.
 
 ## Notes
 
