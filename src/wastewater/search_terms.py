@@ -1,10 +1,13 @@
-"""Regression helpers for search-term time-series files.
+"""Regression helpers for Google Trends search-term time-series files.
 
-Search-term files are expected to have filenames beginning with ``time_series_GB``.
-The search-volume predictor is always the second source column by position,
-regardless of the column name. These helpers scan a local checkout, load the
-files, coerce that second column to a canonical ``count`` field, and build
-regression frames against UKHSA GP/admission chart series.
+The one-year search trend files used for the main regression live in
+``Google_trends_v2/1y_data`` and are expected to have filenames beginning with
+``time_series_GB``. The search-volume predictor is always the second source
+column by position, regardless of the column name.
+
+These helpers scan a local checkout, load the files, coerce that second column
+to a canonical ``count`` field, and build regression frames against UKHSA
+GP/admission chart series.
 """
 from __future__ import annotations
 
@@ -17,6 +20,9 @@ import pandas as pd
 import statsmodels.api as sm
 
 from .ukhsa import build_ukhsa_series_catalogue, chart_to_series
+
+DEFAULT_SEARCH_TERMS_DIR = Path("Google_trends_v2") / "1y_data"
+DEFAULT_SEARCH_TERMS_PATTERN = "time_series_GB*"
 
 
 def normalise_column_names(df: pd.DataFrame) -> pd.DataFrame:
@@ -33,17 +39,27 @@ def normalise_column_names(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def find_search_term_files(root: Path, pattern: str = "time_series_GB*") -> pd.DataFrame:
-    """Find search-term files anywhere in the repository checkout."""
+def find_search_term_files(
+    root: Path,
+    search_dir: str | Path | None = DEFAULT_SEARCH_TERMS_DIR,
+    pattern: str = DEFAULT_SEARCH_TERMS_PATTERN,
+) -> pd.DataFrame:
+    """Find one-year Google Trends search-term files.
+
+    By default this searches only ``Google_trends_v2/1y_data``. Pass
+    ``search_dir=None`` to scan the whole repository checkout.
+    """
     root = Path(root).resolve()
+    base = root if search_dir is None else root / Path(search_dir)
     files = sorted(
-        p for p in root.rglob(pattern)
+        p for p in base.rglob(pattern)
         if p.is_file() and p.suffix.lower() in {".csv", ".tsv", ".txt", ".json"}
-    )
+    ) if base.exists() else []
     return pd.DataFrame(
         {
             "path": [p.relative_to(root).as_posix() for p in files],
             "filename": [p.name for p in files],
+            "search_dir": [Path(search_dir).as_posix() if search_dir is not None else "." for _ in files],
             "suffix": [p.suffix.lower() for p in files],
             "size_kb": [p.stat().st_size / 1024 for p in files],
         }
@@ -131,9 +147,13 @@ def search_file_to_long(root: Path, rel_path: str, value_column_index: int = 1) 
     return out
 
 
-def build_search_term_catalogue(root: Path, value_column_index: int = 1) -> pd.DataFrame:
-    """Return file metadata plus inferred schema for every search-term file."""
-    files = find_search_term_files(root)
+def build_search_term_catalogue(
+    root: Path,
+    search_dir: str | Path | None = DEFAULT_SEARCH_TERMS_DIR,
+    value_column_index: int = 1,
+) -> pd.DataFrame:
+    """Return file metadata plus inferred schema for every selected search-term file."""
+    files = find_search_term_files(root, search_dir=search_dir)
     rows: list[dict] = []
     for row in files.to_dict(orient="records"):
         try:
@@ -201,32 +221,40 @@ def build_gp_admissions_series_from_ukhsa(
     return outcome.groupby(period_col, dropna=False)["value"].sum(min_count=1).reset_index(name="gp_admissions")
 
 
+def _safe_predictor_name(name: str) -> str:
+    return re.sub(r"[^0-9A-Za-z]+", "_", str(name)).strip("_").lower()
+
+
 def build_search_term_regression_frame(
     root: Path,
     search_files: Sequence[str] | None = None,
     outcome_files: Sequence[str] | None = None,
+    search_dir: str | Path | None = DEFAULT_SEARCH_TERMS_DIR,
     freq: str = "W",
     lags: Iterable[int] = (0, 1, 2, 3, 4),
-    aggregate_terms: bool = True,
+    aggregate_terms: bool = False,
     value_column_index: int = 1,
 ) -> pd.DataFrame:
     """Build a lagged regression frame for search-term counts vs GP admissions.
 
     Parameters
     ----------
+    search_dir:
+        Directory to scan for search term files when ``search_files`` is not
+        supplied. Defaults to ``Google_trends_v2/1y_data``.
     aggregate_terms:
         If True, all second-column values are summed into ``search_count`` before
-        lagging. If False, each search term is pivoted into separate predictors,
-        still using the second source column from each file.
+        lagging. If False, each one-year Google Trends file is pivoted into a
+        separate predictor, still using the second source column from each file.
     value_column_index:
         Zero-based source-column index to use as the search-volume predictor.
         The default, 1, means the second column.
     """
     root = Path(root)
     if search_files is None:
-        search_files = find_search_term_files(root)["path"].tolist()
+        search_files = find_search_term_files(root, search_dir=search_dir)["path"].tolist()
     if not search_files:
-        raise ValueError("No search-term files matching time_series_GB* were found.")
+        raise ValueError("No search-term files matching time_series_GB* were found in the selected directory.")
 
     terms = pd.concat([search_file_to_long(root, p, value_column_index=value_column_index) for p in search_files], ignore_index=True)
     period_col = "week" if freq.upper().startswith("W") else "month"
@@ -250,22 +278,43 @@ def build_search_term_regression_frame(
     )
     frame = pd.merge(pivot, outcome, on=period_col, how="inner").rename(columns={period_col: "period"}).sort_values("period")
     frame["z_gp_admissions"] = standardise(frame["gp_admissions"])
-    for col in [c for c in frame.columns if c not in {"period", "gp_admissions", "z_gp_admissions"}]:
-        zcol = "z_" + re.sub(r"[^0-9A-Za-z]+", "_", str(col)).strip("_").lower()
+    raw_predictor_cols = [c for c in frame.columns if c not in {"period", "gp_admissions", "z_gp_admissions"}]
+    for col in raw_predictor_cols:
+        zcol = "z_" + _safe_predictor_name(col)
         frame[zcol] = standardise(frame[col])
         for lag in lags:
             frame[f"{zcol}_lag{lag}"] = frame[zcol].shift(lag)
     return frame
 
 
+def search_term_lagged_predictor_columns(
+    frame: pd.DataFrame,
+    lags: Iterable[int] = (0, 1, 2, 3, 4),
+) -> list[str]:
+    """Return lagged Google Trends predictor columns from a regression frame."""
+    lag_suffixes = tuple(f"_lag{lag}" for lag in lags)
+    excluded_prefixes = ("z_gp_admissions",)
+    return sorted(
+        col for col in frame.columns
+        if col.startswith("z_") and col.endswith(lag_suffixes) and not col.startswith(excluded_prefixes)
+    )
+
+
 def fit_search_term_ols(
     frame: pd.DataFrame,
     lags: Iterable[int] = (0, 1, 2, 3, 4),
     predictor_prefix: str = "z_search_count_lag",
+    predictor_columns: Sequence[str] | None = None,
     seasonal_controls: bool = True,
 ):
-    """Fit OLS for z-scored GP admissions on lagged search-term counts."""
-    predictors = [f"{predictor_prefix}{lag}" for lag in lags]
+    """Fit OLS for z-scored GP admissions on search-term predictors.
+
+    If ``predictor_columns`` is supplied, those columns are used directly. This
+    is the preferred mode for the one-year Google Trends files, where each file
+    is a separate predictive variable. Otherwise, the legacy aggregate predictor
+    prefix is used.
+    """
+    predictors = list(predictor_columns) if predictor_columns is not None else [f"{predictor_prefix}{lag}" for lag in lags]
     model_df = frame[["period", "z_gp_admissions", *predictors]].dropna().copy()
     y = model_df["z_gp_admissions"]
     X = model_df[predictors].copy()
@@ -273,4 +322,5 @@ def fit_search_term_ols(
         month = pd.to_datetime(model_df["period"]).dt.month.astype("category")
         X = pd.concat([X, pd.get_dummies(month, prefix="month", drop_first=True, dtype=float)], axis=1)
     X = sm.add_constant(X, has_constant="add")
-    return sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": max(lags) if lags else 1})
+    maxlags = max(lags) if lags else 1
+    return sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": maxlags})
