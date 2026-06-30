@@ -43,6 +43,28 @@ notebooks/01_wastewater_analysis.ipynb
 
 The first notebook inventories `data/raw/`, inspects source schemas, defines a canonical long-format target, and provides placeholders for country-specific cleaning adapters.
 
+## NHS111 / admissions regression
+
+Download NHS England clinical activity data with:
+
+```bash
+python scripts/download_clinical_data.py
+```
+
+This reads `clinical_sources.csv`, scrapes the NHS England Integrated Urgent Care and A&E statistics pages, and writes files under:
+
+```text
+data/clinical/raw/
+```
+
+Then open:
+
+```text
+notebooks/02_nhs111_gp_regression.ipynb
+```
+
+The notebook starts with a national monthly regression of admission activity on NHS111/IUC call activity and lagged call activity. If the intended outcome is a more specific GP measure, use the notebook's outcome-column selection step to swap in the relevant GP-related field.
+
 Reusable notebook helpers live in:
 
 ```text
