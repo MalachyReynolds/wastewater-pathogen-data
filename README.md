@@ -2,7 +2,7 @@
 
 Public source catalogue, reproducible downloader, and analysis notebooks for viral-load data on respiratory pathogens in wastewater, focused on Western European countries.
 
-The repository is designed to be refreshed from source rather than maintained by hand. The authoritative sources are listed in `sources.csv`; `scripts/download_all.py` downloads them into `data/raw/` and writes `manifest.json` plus `download_failures.json`.
+The repository is designed to be refreshed from source rather than maintained by hand. The authoritative wastewater sources are listed in `sources.csv`; `scripts/download_all.py` downloads them into `data/raw/` and writes `manifest.json` plus `download_failures.json`.
 
 ## Included source types
 
@@ -15,13 +15,42 @@ Current sources include wastewater viral-load or wastewater RNA datasets for:
 - Netherlands: SARS-CoV-2 wastewater data
 - Scotland: SARS-CoV-2 wastewater RNA
 
+Additional predictive and predicted source catalogues are listed in:
+
+```text
+predictive_sources.csv
+predicted_sources.csv
+```
+
 ## Refresh the data
 
 ```bash
 python scripts/download_all.py
+python scripts/download_clinical_data.py
+python scripts/download_external_respiratory_sources.py
 ```
 
-The script continues after individual download failures and records them in `download_failures.json`.
+The wastewater downloader continues after individual download failures and records them in `download_failures.json`. The external downloader currently fetches no-key sources that can be automated immediately, including OWID COVID data and Open-Meteo historical weather for UK nation / England-region centroids.
+
+## Run an end-to-end model
+
+For a command-line run that downloads accessible external data, builds the panel, trains models, and writes outputs, run:
+
+```bash
+python scripts/run_respiratory_ml_pipeline.py
+```
+
+This writes diagnostics and model outputs to:
+
+```text
+data/processed/respiratory_ml_canonical_series.csv
+data/processed/respiratory_ml_series_summary.csv
+data/processed/respiratory_ml_family_counts.csv
+data/processed/respiratory_incidence_ml_model_results.csv
+data/processed/respiratory_incidence_ml_model_predictions.csv
+```
+
+Use this first when checking whether the repository can actually access enough data to fit at least one model.
 
 ## Analyse the data
 
@@ -42,6 +71,64 @@ notebooks/01_wastewater_analysis.ipynb
 ```
 
 The first notebook inventories `data/raw/`, inspects source schemas, defines a canonical long-format target, and provides placeholders for country-specific cleaning adapters.
+
+## Respiratory incidence ML panel
+
+To train multiple machine-learning models on the larger predictive/predicted respiratory-virus panel, open:
+
+```text
+notebooks/06_respiratory_incidence_ml_panel.ipynb
+```
+
+This notebook gathers currently available canonical series, builds lagged features, and compares OLS, ridge, elastic net, random forest, and histogram gradient boosting under a chronological train-test split. Outputs are written to:
+
+```text
+data/processed/respiratory_incidence_ml_model_results.csv
+data/processed/respiratory_incidence_ml_model_predictions.csv
+```
+
+The supporting code lives in:
+
+```text
+src/wastewater/ml_panel.py
+src/wastewater/external_series.py
+```
+
+## Leakage-safe predictive vs predicted matrix
+
+To compare every predictive/predicted pair without future leakage, open:
+
+```text
+notebooks/05_predictive_vs_predicted_train_test_matrix.ipynb
+```
+
+This workflow uses expanding-window forecasts. For each prediction period, the model is trained only on earlier periods, uses positive predictor lags only, and scores only out-of-sample predictions. It reports best and worst held-out errors across all pairs and writes spike-risk scores for hospital-admission targets.
+
+Predictive series currently include:
+
+- Google Trends one-year files in `Google_trends_v2/1y_data/time_series_GB*`
+- UKHSA charts classified as NHS-call series
+- raw wastewater files listed in `sources.csv` and stored under `data/raw/`
+- processed wastewater long-format data, if `data/processed/wastewater_long.{parquet,csv}` also exists
+
+Predicted series currently include:
+
+- UKHSA charts classified as GP/admission series
+
+It writes results to:
+
+```text
+data/processed/leakage_safe_pairwise_forecast_results.csv
+data/processed/leakage_safe_pairwise_forecast_predictions.csv
+data/processed/leakage_safe_hospital_spike_scores.csv
+```
+
+The supporting code lives in:
+
+```text
+src/wastewater/leakage_safe_matrix.py
+src/wastewater/regression_matrix.py
+```
 
 ## UKHSA NHS calls / GP admissions regression
 
@@ -71,7 +158,7 @@ open:
 notebooks/04_search_terms_gp_admissions_regression.ipynb
 ```
 
-This notebook scans `Google_trends_v2/1y_data` for `time_series_GB*` files, uses the second source column from each file as a Google Trends predictor, and regresses GP admissions on contemporaneous and lagged Google Trends predictors. The supporting code lives in:
+This notebook scans `Google_trends_v2/1y_data` for `time_series_GB*` files, uses the second source column from each file as a Google Trends predictor, and regresses GP admissions on contemporaneous and lagged Google Trends predictors. It includes a chronological train-test split to check held-out predictive performance, reporting RMSE, MAE, R², correlation, and improvement over a training-mean baseline. The supporting code lives in:
 
 ```text
 src/wastewater/search_terms.py

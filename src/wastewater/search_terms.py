@@ -300,6 +300,20 @@ def search_term_lagged_predictor_columns(
     )
 
 
+def _design_matrix(
+    df: pd.DataFrame,
+    predictor_columns: Sequence[str],
+    seasonal_controls: bool = True,
+    time_col: str = "period",
+) -> pd.DataFrame:
+    """Construct a regression design matrix with optional month dummies."""
+    X = df[list(predictor_columns)].copy()
+    if seasonal_controls:
+        month = pd.to_datetime(df[time_col]).dt.month.astype("category")
+        X = pd.concat([X, pd.get_dummies(month, prefix="month", drop_first=True, dtype=float)], axis=1)
+    return sm.add_constant(X, has_constant="add")
+
+
 def fit_search_term_ols(
     frame: pd.DataFrame,
     lags: Iterable[int] = (0, 1, 2, 3, 4),
@@ -317,10 +331,114 @@ def fit_search_term_ols(
     predictors = list(predictor_columns) if predictor_columns is not None else [f"{predictor_prefix}{lag}" for lag in lags]
     model_df = frame[["period", "z_gp_admissions", *predictors]].dropna().copy()
     y = model_df["z_gp_admissions"]
-    X = model_df[predictors].copy()
-    if seasonal_controls:
-        month = pd.to_datetime(model_df["period"]).dt.month.astype("category")
-        X = pd.concat([X, pd.get_dummies(month, prefix="month", drop_first=True, dtype=float)], axis=1)
-    X = sm.add_constant(X, has_constant="add")
+    X = _design_matrix(model_df, predictors, seasonal_controls=seasonal_controls)
     maxlags = max(lags) if lags else 1
     return sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": maxlags})
+
+
+def chronological_train_test_split(
+    frame: pd.DataFrame,
+    predictor_columns: Sequence[str],
+    outcome_col: str = "z_gp_admissions",
+    time_col: str = "period",
+    train_fraction: float = 0.8,
+    min_test_size: int = 4,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split a time-series regression frame chronologically.
+
+    Rows with missing outcome or predictors are dropped before splitting. The
+    first block is the training set and the final block is the held-out test set.
+    """
+    if not 0 < train_fraction < 1:
+        raise ValueError("train_fraction must lie between 0 and 1")
+
+    model_df = frame[[time_col, outcome_col, *predictor_columns]].dropna().sort_values(time_col).copy()
+    n = len(model_df)
+    if n < 3:
+        raise ValueError(f"Need at least 3 complete observations for train/test split; found {n}")
+
+    if n <= min_test_size:
+        split_idx = max(1, n - 1)
+    else:
+        split_idx = int(np.floor(n * train_fraction))
+        split_idx = min(split_idx, n - min_test_size)
+        split_idx = max(1, split_idx)
+
+    train = model_df.iloc[:split_idx].copy()
+    test = model_df.iloc[split_idx:].copy()
+    return train, test
+
+
+def regression_metrics(y_true: pd.Series, y_pred: pd.Series, baseline_pred: float | None = None) -> dict[str, float]:
+    """Compute predictive metrics for held-out regression predictions."""
+    y_true = pd.Series(y_true, dtype="float64")
+    y_pred = pd.Series(y_pred, dtype="float64")
+    err = y_true - y_pred
+    mae = float(np.mean(np.abs(err)))
+    rmse = float(np.sqrt(np.mean(err**2)))
+    denom = float(np.sum((y_true - y_true.mean()) ** 2))
+    r2 = float(1 - np.sum(err**2) / denom) if denom > 0 else float("nan")
+    corr = float(np.corrcoef(y_true, y_pred)[0, 1]) if len(y_true) > 1 else float("nan")
+
+    metrics: dict[str, float] = {
+        "n_test": float(len(y_true)),
+        "mae": mae,
+        "rmse": rmse,
+        "r2": r2,
+        "correlation": corr,
+    }
+    if baseline_pred is not None:
+        baseline_err = y_true - baseline_pred
+        baseline_rmse = float(np.sqrt(np.mean(baseline_err**2)))
+        metrics["baseline_rmse"] = baseline_rmse
+        metrics["mse_skill_vs_train_mean"] = float(1 - (rmse**2 / baseline_rmse**2)) if baseline_rmse > 0 else float("nan")
+    return metrics
+
+
+def fit_search_term_train_test(
+    frame: pd.DataFrame,
+    predictor_columns: Sequence[str],
+    lags: Iterable[int] = (0, 1, 2, 3, 4),
+    train_fraction: float = 0.8,
+    min_test_size: int = 4,
+    seasonal_controls: bool = False,
+) -> dict[str, object]:
+    """Fit on an earlier training window and evaluate on a later test window."""
+    train, test = chronological_train_test_split(
+        frame,
+        predictor_columns=predictor_columns,
+        train_fraction=train_fraction,
+        min_test_size=min_test_size,
+    )
+
+    X_train = _design_matrix(train, predictor_columns, seasonal_controls=seasonal_controls)
+    X_test = _design_matrix(test, predictor_columns, seasonal_controls=seasonal_controls)
+    X_test = X_test.reindex(columns=X_train.columns, fill_value=0.0)
+
+    y_train = train["z_gp_admissions"]
+    y_test = test["z_gp_admissions"]
+    maxlags = max(lags) if lags else 1
+    model = sm.OLS(y_train, X_train).fit(cov_type="HAC", cov_kwds={"maxlags": maxlags})
+
+    test_pred = pd.Series(model.predict(X_test), index=test.index, name="prediction")
+    train_mean = float(y_train.mean())
+    metrics = regression_metrics(y_test, test_pred, baseline_pred=train_mean)
+
+    train_out = train.copy()
+    train_out["split"] = "train"
+    train_out["prediction"] = pd.Series(model.predict(X_train), index=train.index)
+    train_out["residual"] = train_out["z_gp_admissions"] - train_out["prediction"]
+
+    test_out = test.copy()
+    test_out["split"] = "test"
+    test_out["prediction"] = test_pred
+    test_out["baseline_prediction"] = train_mean
+    test_out["residual"] = test_out["z_gp_admissions"] - test_out["prediction"]
+
+    return {
+        "model": model,
+        "train": train_out,
+        "test": test_out,
+        "metrics": metrics,
+        "predictor_columns": list(predictor_columns),
+    }

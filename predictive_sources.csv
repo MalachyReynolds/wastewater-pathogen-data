@@ -1,0 +1,12 @@
+source_id,role,dataset_family,variables,geography,frequency,access_method,source_url,repo_path,notes
+existing_google_trends_1y,predictive,google_trends,"search interest for respiratory symptoms and virus terms",GB,weekly,local_files,,Google_trends_v2/1y_data/time_series_GB*,Use second source column in each file as the predictive variable
+existing_wastewater_raw,predictive,wastewater,"SARS-CoV-2 influenza RSV wastewater viral signals",western_europe,mixed,local_files,,data/raw,Raw files listed in sources.csv and downloaded by scripts/download_all.py
+existing_ukhsa_nhs_calls,predictive,ukhsa_nhs_calls,"NHS 111 or NHS call/online activity chart exports",GB_or_England,weekly_or_monthly,local_files,,ukhsa-chart*,Classified by src/wastewater/ukhsa.py as nhs_calls
+nhs_iuc_adc,predictive,nhs_iuc_adc,"NHS111/IUC calls offered answered online assessments and dispositions",England,monthly,scrape_catalogue,https://www.england.nhs.uk/statistics/statistical-work-areas/iucadc-new-from-april-2021/,clinical_sources.csv,Existing clinical downloader scrapes annual IUC ADC pages
+open_meteo_weather,predictive,weather,"temperature precipitation humidity wind pressure weathercode",UK_or_panel_geographies,daily_api,api,https://archive-api.open-meteo.com/v1/archive,,No-key historical weather API; aggregate daily values to week
+uk_air,predictive,air_quality,"PM2.5 PM10 NO2 O3 SO2 site measurements",UK,optional_api_or_download,manual_or_api,https://uk-air.defra.gov.uk/data/,,Add once site/geography mapping is chosen
+ons_population,predictive,population,"age structure population density geography denominators",UK,annual,manual_or_api,https://www.ons.gov.uk/,,Static covariates for panel modelling
+school_calendar,predictive,calendar,"school holidays bank holidays week-of-year seasonal harmonics",UK,derived,derived,,src/wastewater/ml_panel.py,Derived from dates rather than downloaded
+who_flunet,predictive,international_surveillance,"influenza positives tested subtypes by country",global,weekly,manual_or_api,https://www.who.int/tools/flunet,,Candidate external predictor for multi-country models
+cdc_respiratory_data,predictive,us_respiratory_surveillance,"US wastewater vaccination variants ED visits hospitalizations",US,weekly,manual_or_api,https://www.cdc.gov/respiratory-viruses/data/index.html,,Candidate external source for US panel extension
+owid_covid,predictive,covid_global,"COVID cases tests hospitalisations deaths vaccinations variants",global,daily,csv,https://github.com/owid/covid-19-data,,Candidate external source for global COVID panel
