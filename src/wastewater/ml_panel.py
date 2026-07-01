@@ -114,9 +114,9 @@ def chronological_split(
 
 
 def _metrics(y_true: np.ndarray, y_pred: np.ndarray, baseline: float) -> dict[str, float]:
-    rmse = float(mean_squared_error(y_true, y_pred, squared=False))
+    rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
     mae = float(mean_absolute_error(y_true, y_pred))
-    baseline_rmse = float(mean_squared_error(y_true, np.full_like(y_true, baseline, dtype=float), squared=False))
+    baseline_rmse = float(np.sqrt(mean_squared_error(y_true, np.full_like(y_true, baseline, dtype=float))))
     return {
         "rmse": rmse,
         "mae": mae,
