@@ -32,6 +32,26 @@ python scripts/download_external_respiratory_sources.py
 
 The wastewater downloader continues after individual download failures and records them in `download_failures.json`. The external downloader currently fetches no-key sources that can be automated immediately, including OWID COVID data and Open-Meteo historical weather for UK nation / England-region centroids.
 
+## Run an end-to-end model
+
+For a command-line run that downloads accessible external data, builds the panel, trains models, and writes outputs, run:
+
+```bash
+python scripts/run_respiratory_ml_pipeline.py
+```
+
+This writes diagnostics and model outputs to:
+
+```text
+data/processed/respiratory_ml_canonical_series.csv
+data/processed/respiratory_ml_series_summary.csv
+data/processed/respiratory_ml_family_counts.csv
+data/processed/respiratory_incidence_ml_model_results.csv
+data/processed/respiratory_incidence_ml_model_predictions.csv
+```
+
+Use this first when checking whether the repository can actually access enough data to fit at least one model.
+
 ## Analyse the data
 
 Create an environment, install dependencies, and open JupyterLab:
@@ -71,6 +91,7 @@ The supporting code lives in:
 
 ```text
 src/wastewater/ml_panel.py
+src/wastewater/external_series.py
 ```
 
 ## Predictive vs predicted train-test matrix
