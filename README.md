@@ -94,34 +94,39 @@ src/wastewater/ml_panel.py
 src/wastewater/external_series.py
 ```
 
-## Predictive vs predicted train-test matrix
+## Leakage-safe predictive vs predicted matrix
 
-To run chronological train-test regressions across every automatically available predictive/predicted pair, open:
+To compare every predictive/predicted pair without future leakage, open:
 
 ```text
 notebooks/05_predictive_vs_predicted_train_test_matrix.ipynb
 ```
 
-This workflow currently treats these as predictive series:
+This workflow uses expanding-window forecasts. For each prediction period, the model is trained only on earlier periods, uses positive predictor lags only, and scores only out-of-sample predictions. It reports best and worst held-out errors across all pairs and writes spike-risk scores for hospital-admission targets.
+
+Predictive series currently include:
 
 - Google Trends one-year files in `Google_trends_v2/1y_data/time_series_GB*`
 - UKHSA charts classified as NHS-call series
 - raw wastewater files listed in `sources.csv` and stored under `data/raw/`
 - processed wastewater long-format data, if `data/processed/wastewater_long.{parquet,csv}` also exists
 
-and these as predicted series:
+Predicted series currently include:
 
 - UKHSA charts classified as GP/admission series
 
-It writes ranked held-out results to:
+It writes results to:
 
 ```text
-data/processed/predictive_vs_predicted_train_test_results.csv
+data/processed/leakage_safe_pairwise_forecast_results.csv
+data/processed/leakage_safe_pairwise_forecast_predictions.csv
+data/processed/leakage_safe_hospital_spike_scores.csv
 ```
 
 The supporting code lives in:
 
 ```text
+src/wastewater/leakage_safe_matrix.py
 src/wastewater/regression_matrix.py
 ```
 
