@@ -32,6 +32,43 @@ python scripts/download_external_respiratory_sources.py
 
 The wastewater downloader continues after individual download failures and records them in `download_failures.json`. The external downloader currently fetches no-key sources that can be automated immediately, including OWID COVID data and Open-Meteo historical weather for UK nation / England-region centroids.
 
+## Streamlit dashboard
+
+Run the interactive dashboard with:
+
+```bash
+streamlit run app.py
+```
+
+The dashboard includes pages for loading data, exploring time series, fitting models, forecasting, refreshing downloads, and estimating superspreader-event risk.
+
+## Superspreader event risk tool
+
+The `Superspreader Risk` Streamlit page estimates whether a candidate event could disproportionately amplify transmission for RSV, influenza, COVID-19, or another respiratory pathogen. It uses an interpretable MVP model under:
+
+```text
+src/wastewater/superspreading/
+```
+
+For each candidate event, the tool reports:
+
+```text
+Transmission Amplification Factor (TAF)
+Expected event transmission
+P(SSE), the probability of exceeding a homogeneous superspreading threshold
+90% simulated interval for secondary infections
+Risk band
+Optional regional contribution index
+```
+
+The main mathematical measure is:
+
+```text
+TAF = E[secondary infections | event conditions] / E[secondary infections | baseline conditions]
+```
+
+The simulator draws infectious attendees from a binomial model and secondary infections from a negative-binomial offspring distribution, using local prevalence, R_t, event size, event conditions, and a dispersion parameter `k`. The coefficients are transparent defaults for scenario comparison; they should be calibrated with outbreak investigations or inferred event impacts before operational use.
+
 ## Run an end-to-end model
 
 For a command-line run that downloads accessible external data, builds the panel, trains models, and writes outputs, run:
