@@ -16,7 +16,7 @@ TARGET_COL = "uk_influenza_like_ed__influenza-like_syndromic_emergencyDepartment
 LOOKBACK_DAYS = 14     # previous 2 weeks as input
 HORIZON_DAYS = 14      # predict 2 weeks ahead
 BATCH_SIZE = 32
-EPOCHS = 10000
+EPOCHS = 1000
 LR = 1e-3
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -326,7 +326,7 @@ plt.legend()
 
 plt.tight_layout()
 
-plt.savefig("lstm_ed_actual_vs_predicted.png", dpi=300)
+plt.savefig("lstm_ed_actual_vs_predicted_jake.png", dpi=300)
 
 plt.figure(figsize=(6,6))
 
