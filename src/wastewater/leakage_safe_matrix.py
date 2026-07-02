@@ -56,7 +56,7 @@ def make_pair_frame(
     return frame[["period", "y", *predictor_cols]].dropna().reset_index(drop=True), predictor_cols
 
 
-def _normalise_using_train(train_values: pd.DataFrame | pd.Series, values: pd.DataFrame | pd.Series):
+def normalise_using_train(train_values: pd.DataFrame | pd.Series, values: pd.DataFrame | pd.Series):
     """Z-score using training-window mean and standard deviation only."""
     mean = train_values.mean(axis=0)
     std = train_values.std(axis=0).replace(0, np.nan) if isinstance(train_values, pd.DataFrame) else train_values.std()
@@ -138,9 +138,9 @@ def rolling_origin_pair_forecast(
         y_train_raw = train["y"].astype(float)
         y_test = float(test["y"].iloc[0])
 
-        X_train_z, x_mean, x_std = _normalise_using_train(X_train_raw, X_train_raw)
+        X_train_z, x_mean, x_std = normalise_using_train(X_train_raw, X_train_raw)
         X_test_z = (X_test_raw - x_mean) / x_std
-        y_train_z, y_mean, y_std = _normalise_using_train(y_train_raw, y_train_raw)
+        y_train_z, y_mean, y_std = normalise_using_train(y_train_raw, y_train_raw)
 
         model = Ridge(alpha=ridge_alpha, fit_intercept=True)
         model.fit(X_train_z, y_train_z)
@@ -299,3 +299,14 @@ def best_worst_summary(results: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "worst_abs_error": ok.sort_values("max_abs_error", ascending=False).head(10),
         "highest_spike_score": ok.sort_values("latest_spike_score", ascending=False).head(10),
     }
+
+
+__all__ = [
+    "period_column",
+    "aggregate_one_series",
+    "make_pair_frame",
+    "normalise_using_train",
+    "rolling_origin_pair_forecast",
+    "run_leakage_safe_pairwise_matrix",
+    "best_worst_summary",
+]

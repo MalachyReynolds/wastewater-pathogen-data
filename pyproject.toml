@@ -15,6 +15,8 @@ dependencies = [
   "scipy>=1.12",
   "statsmodels>=0.14",
   "scikit-learn>=1.4",
+  "streamlit>=1.37",
+  "plotly>=5.20",
 ]
 
 [tool.setuptools.packages.find]

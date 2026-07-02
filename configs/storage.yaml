@@ -1,0 +1,25 @@
+storage:
+  local_root: data
+  registry_root: data_registry
+  default_format: parquet
+  compression: zstd
+
+  layers:
+    raw: data/raw
+    normalized: data/normalized
+    features: data/features
+    reports: data/reports
+
+  latest:
+    enabled: true
+    root: data_registry/latest
+
+  manifests:
+    root: data_registry/manifests
+
+  dvc:
+    enabled: false
+    remote_name: respiratory_data_remote
+    # For local development, use something like:
+    #   dvc remote add -d respiratory_data_remote ../respiratory-dvc-store
+    # For shared storage, switch the remote URL to S3-compatible object storage.
