@@ -97,3 +97,25 @@ def test_normalized_signals_to_canonical_series() -> None:
     assert len(series) == 3
     assert series["role"].iloc[0] == "predicted"
     assert series["dataset_family"].iloc[0] == "agent_normalized_signal"
+
+
+def test_normalized_signals_to_canonical_series_prefers_explicit_role_over_heuristic() -> None:
+    # "hospital_admissions"/"admission_rate" would make the substring heuristic guess
+    # "predicted" -- an explicit role column set to "predictive" should win regardless.
+    frame = pd.DataFrame(
+        {
+            "date": pd.date_range("2026-01-01", periods=3, freq="W"),
+            "value": [1.0, 2.0, 3.0],
+            "source": "ukhsa",
+            "pathogen": "RSV",
+            "role": "predictive",
+            "signal_type": "hospital_admissions",
+            "metric": "admission_rate",
+            "geography_name": "England",
+            "geography_code": "E92000001",
+        }
+    )
+
+    series = normalized_signals_to_canonical_series(frame)
+    assert len(series) == 3
+    assert series["role"].iloc[0] == "predictive"

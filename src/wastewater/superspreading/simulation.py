@@ -49,7 +49,7 @@ def simulate_event_transmission(
     p = k / (k + mean_secondary)
     totals = np.zeros(n_sim, dtype=float)
     unique_counts, frequencies = np.unique(infectious, return_counts=True)
-    for n_infectious, freq in zip(unique_counts, frequencies, strict=False):
+    for n_infectious, freq in zip(unique_counts, frequencies):
         if n_infectious == 0:
             continue
         draws = rng.negative_binomial(k, p, size=(freq, int(n_infectious)))

@@ -1,0 +1,21 @@
+{
+  "feature_set": "google_trends_strepsils",
+  "artifact_type": "normalized_signal_table",
+  "run_id": "20260702T152230Z",
+  "path": "data/normalized/google_trends_strepsils/20260702T152230Z.parquet",
+  "rows": 262,
+  "columns": 9,
+  "date_min": "2021-06-27",
+  "date_max": "2026-06-28",
+  "validation_status": "passed",
+  "validation_notes": "Data looks consistent: 262 rows, one signal, no missing values, date span reasonable.",
+  "summary": "The ingestion of the google_trends_strepsils feature set yielded 262 rows of data representing a single signal, spanning from 27 June 2021 to 28 June 2026, with no missing values (missing‑value fraction = 0.0). This dataset contributes to respiratory‑surveillance monitoring of Strepsils‑related search trends.",
+  "column_mapping": {
+    "date_column": "date",
+    "geography_column": null,
+    "signal_columns": [
+      "/m/0c54t_"
+    ]
+  },
+  "retrieved_at": "2026-07-02T15:22:46Z"
+}

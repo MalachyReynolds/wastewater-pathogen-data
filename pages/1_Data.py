@@ -11,6 +11,7 @@ SRC_DIR = ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from wastewater.dashboard.compat import make_streamlit_safe
 from wastewater.dashboard.data import (
     build_custom_series,
     discover_local_files,
@@ -42,7 +43,7 @@ if "series" in st.session_state:
     series = st.session_state["series"]
     catalogue = st.session_state["catalogue"]
     st.success(f"Loaded {len(series):,} observations across {len(catalogue)} series.")
-    st.dataframe(catalogue, width="stretch")
+    st.dataframe(make_streamlit_safe(catalogue), width="stretch")
 else:
     st.info("Click 'Load canonical series panel' to make data available to the other pages.")
 
@@ -79,7 +80,7 @@ if raw_frame is not None:
     st.session_state["raw_label"] = raw_label
 
     st.write(f"Loaded: {raw_label}")
-    st.dataframe(raw_frame.head(10), width="stretch")
+    st.dataframe(make_streamlit_safe(raw_frame.head(10)), width="stretch")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Rows", len(raw_frame))
@@ -87,7 +88,7 @@ if raw_frame is not None:
     col3.metric("Numeric columns", sum(raw_frame.dtypes.apply(lambda dtype: dtype.kind in "iuf")))
 
     st.subheader("Summary statistics")
-    st.dataframe(summarise_dataset(raw_frame), width="stretch")
+    st.dataframe(make_streamlit_safe(summarise_dataset(raw_frame)), width="stretch")
 
     st.subheader("Add to series panel for modelling")
     st.write(

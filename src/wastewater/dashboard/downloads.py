@@ -44,6 +44,16 @@ DOWNLOAD_JOBS: dict[str, DownloadJob] = {
         script="download_clinical_data.py",
         output_files=("data/clinical/clinical_download_manifest.json",),
     ),
+    "data_agent": DownloadJob(
+        key="data_agent",
+        label="Run the autonomous data agent",
+        warning=(
+            "Fetches external sources and calls the Nebius Token Factory API to help normalise them. "
+            "Requires NEBIUS_API_KEY and NEBIUS_MODEL to be set in the server's environment."
+        ),
+        script="run_data_agent.py",
+        output_files=(),
+    ),
 }
 
 

@@ -11,6 +11,7 @@ SRC_DIR = ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from wastewater.dashboard.compat import make_streamlit_safe
 from wastewater.superspreading import EventProfile, EpidemiologicalContext, assess_event_risk
 
 st.set_page_config(page_title="Superspreader Risk", page_icon="⚠️", layout="wide")
@@ -134,7 +135,7 @@ if "last_superspreader_risk" in st.session_state:
 
     st.subheader("Exportable result")
     result_frame = pd.DataFrame([risk])
-    st.dataframe(result_frame, width="stretch")
+    st.dataframe(make_streamlit_safe(result_frame), width="stretch")
     st.download_button(
         "Download result CSV",
         result_frame.to_csv(index=False).encode("utf-8"),

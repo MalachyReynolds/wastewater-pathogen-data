@@ -1,0 +1,21 @@
+{
+  "feature_set": "global_covid_weekly_growth",
+  "artifact_type": "normalized_signal_table",
+  "run_id": "20260702T135158Z",
+  "path": "data/normalized/global_covid_weekly_growth/20260702T135158Z.parquet",
+  "rows": 347939,
+  "columns": 8,
+  "date_min": "2020-01-16",
+  "date_max": "2026-05-17",
+  "validation_status": "warning",
+  "validation_notes": "date_max is in the future (2026-05-17)",
+  "summary": "The ingestion run processed the global_covid_weekly_growth feature set, comprising 347,939 rows with a single signal spanning 2020-01-16 through 2026-05-17, and reported a missing‑value fraction of 0.0. This indicates a complete dataset with no missing entries for the specified period.",
+  "column_mapping": {
+    "date_column": "dates",
+    "geography_column": "entities",
+    "signal_columns": [
+      "weekly_pct_growth_cases"
+    ]
+  },
+  "retrieved_at": "2026-07-02T13:52:11Z"
+}

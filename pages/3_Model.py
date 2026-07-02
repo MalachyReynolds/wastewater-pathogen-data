@@ -11,6 +11,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from wastewater.dashboard.charts import actual_vs_predicted_chart
+from wastewater.dashboard.compat import make_streamlit_safe
 from wastewater.dashboard.models import MODEL_REGISTRY, fit_models_for_targets, fit_spike_model
 from wastewater.ml_panel import PanelBuildConfig
 from wastewater.spike_neural_network import SpikeNNConfig
@@ -69,7 +70,7 @@ if "last_model_metrics" in st.session_state:
     metrics = st.session_state["last_model_metrics"]
     predictions = st.session_state["last_model_predictions"]
     st.subheader("Held-out metrics")
-    st.dataframe(metrics, width="stretch")
+    st.dataframe(make_streamlit_safe(metrics), width="stretch")
 
     fitted_targets = sorted(predictions["target_id"].unique()) if not predictions.empty else []
     if fitted_targets:
@@ -111,6 +112,6 @@ if st.button("Fit spike early-warning model"):
 
 if "last_spike_results" in st.session_state:
     st.subheader("Spike-classification metrics by horizon")
-    st.dataframe(st.session_state["last_spike_results"], width="stretch")
+    st.dataframe(make_streamlit_safe(st.session_state["last_spike_results"]), width="stretch")
     st.subheader("Severity predictions")
-    st.dataframe(st.session_state["last_spike_predictions"], width="stretch")
+    st.dataframe(make_streamlit_safe(st.session_state["last_spike_predictions"]), width="stretch")

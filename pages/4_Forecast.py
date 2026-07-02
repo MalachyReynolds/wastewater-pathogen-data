@@ -11,6 +11,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from wastewater.dashboard.charts import forecast_fan_chart
+from wastewater.dashboard.compat import make_streamlit_safe
 from wastewater.dashboard.forecasting import forecast_target
 from wastewater.ml_panel import PanelBuildConfig
 
@@ -82,4 +83,4 @@ if "last_forecast_predictions" in st.session_state:
 
     fig = forecast_fan_chart(predictions)
     st.plotly_chart(fig)
-    st.dataframe(predictions[predictions["is_forecast"]], width="stretch")
+    st.dataframe(make_streamlit_safe(predictions[predictions["is_forecast"]]), width="stretch")

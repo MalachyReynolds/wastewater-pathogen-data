@@ -1,0 +1,21 @@
+{
+  "feature_set": "uk_h5n1_monthly_cases",
+  "artifact_type": "normalized_signal_table",
+  "run_id": "20260702T131042Z",
+  "path": "data/normalized/uk_h5n1_monthly_cases/20260702T131042Z.parquet",
+  "rows": 11264,
+  "columns": 8,
+  "date_min": "1997-01-01",
+  "date_max": "2026-04-01",
+  "validation_status": "warning",
+  "validation_notes": "date_max is in the future (2026-04-01), which may indicate a data issue; other metrics look fine.",
+  "summary": "The ingestion of the uk_h5n1_monthly_cases feature set processed 11,264 rows with a single signal, covering dates from 1997-01-01 to 2026-04-01 and contained no missing values.",
+  "column_mapping": {
+    "date_column": "dates",
+    "geography_column": "entities",
+    "signal_columns": [
+      "avian_cases_month"
+    ]
+  },
+  "retrieved_at": "2026-07-02T13:10:46Z"
+}

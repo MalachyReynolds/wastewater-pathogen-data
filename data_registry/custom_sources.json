@@ -1,0 +1,74 @@
+[
+  {
+    "name": "uk_influenza_weekly_cases",
+    "pathogen": "influenza",
+    "description": "Weekly confirmed cases of influenza in the UK from Our World in Data",
+    "role": "predictive",
+    "url": null,
+    "catalog_slug": "https://ourworldindata.org/explorers/influenza?Confirmed+cases+or+Symptoms=Confirmed+cases&Metric=All+influenza+strains&Interval=Weekly&Surveillance+type=All+types",
+    "google_trends_term": null,
+    "google_trends_geo": "GB",
+    "google_trends_timeframe": "today 5-y",
+    "google_trends_local_file": null
+  },
+  {
+    "name": "uk_h5n1_monthly_cases",
+    "pathogen": "influenza",
+    "description": "H5N1 influenza monthly reported cases in the UK from Our World in Data",
+    "role": "predictive",
+    "url": null,
+    "catalog_slug": "h5n1-flu-reported-cases",
+    "google_trends_term": null,
+    "google_trends_geo": "GB",
+    "google_trends_timeframe": "today 5-y",
+    "google_trends_local_file": null
+  },
+  {
+    "name": "us_flu_vaccine_availability",
+    "pathogen": "influenza",
+    "description": "Availability of flu vaccines in the United States from Our World in Data",
+    "role": "predictive",
+    "url": null,
+    "catalog_slug": "were-flu-vaccines-available-in-the-country",
+    "google_trends_term": null,
+    "google_trends_geo": "GB",
+    "google_trends_timeframe": "today 5-y",
+    "google_trends_local_file": null
+  },
+  {
+    "name": "global_deaths_respiratory_infections",
+    "pathogen": "respiratory",
+    "description": "Deaths from respiratory infections globally from Our World in Data",
+    "role": "predictive",
+    "url": null,
+    "catalog_slug": "deaths-from-respiratory-infections",
+    "google_trends_term": null,
+    "google_trends_geo": "GB",
+    "google_trends_timeframe": "today 5-y",
+    "google_trends_local_file": null
+  },
+  {
+    "name": "global_covid_weekly_growth",
+    "pathogen": "covid-19",
+    "description": "Week by week change in confirmed COVID-19 cases globally from Our World in Data",
+    "role": "predictive",
+    "url": null,
+    "catalog_slug": "weekly-growth-covid-cases",
+    "google_trends_term": null,
+    "google_trends_geo": "GB",
+    "google_trends_timeframe": "today 5-y",
+    "google_trends_local_file": null
+  },
+  {
+    "name": "google_trends_strepsils",
+    "pathogen": "respiratory",
+    "description": "Google Trends interest for the term 'Strepsils' (brand of throat lozenges) as a proxy for sore throat symptoms in the general population.",
+    "role": "predictive",
+    "url": null,
+    "catalog_slug": null,
+    "google_trends_term": "/m/0c54t_",
+    "google_trends_geo": "GB",
+    "google_trends_timeframe": "today 5-y",
+    "google_trends_local_file": null
+  }
+]

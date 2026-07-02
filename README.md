@@ -40,7 +40,55 @@ Run the interactive dashboard with:
 streamlit run app.py
 ```
 
-The dashboard includes pages for loading data, exploring time series, fitting models, forecasting, refreshing downloads, and estimating superspreader-event risk.
+The dashboard includes pages for loading data, exploring time series, fitting models, forecasting, refreshing downloads, loading autonomous-agent artifacts, and estimating superspreader-event risk.
+
+## Autonomous data agent
+
+The `Agent Data` page consumes artifacts written by an autonomous ingestion agent under
+`src/wastewater/agent/`. The agent fetches a source, calls an LLM (Nebius Token Factory's
+OpenAI-compatible API) to help map columns, flag data-quality anomalies, and write a manifest
+summary, then writes:
+
+```text
+data/normalized/<source_name>/<run_id>.parquet         # normalized long-format signal table
+data_registry/manifests/<source_name>/<run_id>.json    # full manifest
+data_registry/latest/<source_name>.json                # pointer to the latest manifest
+```
+
+Run it from the CLI, or click "Start data agent run" on the `Agent Data` page (which runs the
+same script as a background job). Either way it requires two environment variables set in
+whichever process runs it -- never entered through the browser:
+
+```bash
+NEBIUS_API_KEY=...   # your Nebius Token Factory API key
+NEBIUS_MODEL=...     # a model slug available on your Nebius account
+python scripts/run_data_agent.py
+```
+
+`NEBIUS_MODEL` is required with no hardcoded default, since available model slugs vary by
+account. If the LLM call fails or returns something unparseable, each step falls back to a
+plain heuristic (column-name/dtype matching for schema mapping, a missing-value threshold for
+anomaly flagging, a templated sentence for the summary) so a flaky or unreachable API never
+breaks the pipeline -- it just produces a less-informed manifest.
+
+If a source's URL isn't reachable from wherever the script runs (some networks don't resolve
+every public data host), download it manually and point the agent at the local file instead --
+this still runs the same LLM steps and writes the same artifacts, it just skips the fetch:
+
+```bash
+python scripts/run_data_agent.py --source <source_name> --local-file /path/to/file.csv
+```
+
+No sources are configured out of the box. Add one by adding a `SourceSpec` entry to
+`PLACEHOLDER_SOURCES` in `src/wastewater/agent/sources.py` -- nothing else needs to change. A
+source is located by exactly one of two fields:
+
+- `url`: a plain CSV endpoint, fetched over HTTP. The LLM infers which columns are the date,
+  geography, and signal columns, since the schema isn't known in advance.
+- `catalog_slug`: a dataset slug from [OWID's data catalog](https://pypi.org/project/owid-catalog/)
+  (e.g. `weekly-hospital-admissions-covid-per-million`), fetched via `owid.catalog.fetch`. The
+  column mapping is derived directly from the catalog table's own index, so no LLM call is
+  needed for that step -- the LLM is still used for the anomaly-flagging and summary steps.
 
 ## Superspreader event risk tool
 

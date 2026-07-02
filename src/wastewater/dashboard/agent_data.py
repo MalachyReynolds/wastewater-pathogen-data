@@ -196,6 +196,7 @@ def normalized_signals_to_canonical_series(frame: pd.DataFrame, min_observations
             work[column] = "unknown"
     if "_source_file" not in work.columns:
         work["_source_file"] = "data/normalized"
+    has_explicit_role = "role" in work.columns
     parts: list[pd.DataFrame] = []
     keys = ["source", "pathogen", "signal_type", "metric", "geography_name", "geography_code"]
     for values_tuple, group in work.groupby(keys, dropna=False):
@@ -203,7 +204,14 @@ def normalized_signals_to_canonical_series(frame: pd.DataFrame, min_observations
         if numeric.notna().sum() < min_observations:
             continue
         source, pathogen, signal_type, metric, geography_name, geography_code = values_tuple
-        role = "predicted" if "admission" in f"{signal_type} {metric}".lower() else "predictive"
+        # Prefer the role the source was explicitly classified with at add-time (written by
+        # ingest.py) over guessing from the signal name -- the heuristic only exists for
+        # normalized tables written before that classification existed.
+        explicit_role = group["role"].iloc[0] if has_explicit_role else None
+        if explicit_role in {"predictive", "predicted"}:
+            role = explicit_role
+        else:
+            role = "predicted" if "admission" in f"{signal_type} {metric}".lower() else "predictive"
         out = pd.DataFrame(
             {
                 "date": pd.to_datetime(group["date"], errors="coerce"),

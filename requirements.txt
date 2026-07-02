@@ -11,3 +11,6 @@ streamlit>=1.37
 plotly>=5.20
 pytest>=8.0
 dvc>=3.50
+openai>=1.0
+owid-catalog>=1.0
+pytrends>=4.9
