@@ -13,8 +13,8 @@ CSV_PATH = "NN_test_file.csv"
 DATE_COL = "date"
 TARGET_COL = "GP_data"
 
-LOOKBACK_DAYS = 14     # previous 2 weeks as input
-HORIZON_DAYS = 14      # predict 2 weeks ahead
+LOOKBACK_DAYS = 12     # previous 2 weeks as input
+HORIZON_DAYS = 4      # predict 2 weeks ahead
 BATCH_SIZE = 32
 EPOCHS = 1000
 LR = 1e-3
@@ -76,8 +76,8 @@ raw_feature_matrix = df[feature_cols].values.astype(np.float32)
 target_values = df[TARGET_COL].values.astype(np.float32)
 
 n_rows = len(df)
-train_row_end = int(n_rows * 0.70)
-valid_row_end = int(n_rows * 0.85)
+train_row_end = int(n_rows * 0.50)
+valid_row_end = int(n_rows * 0.65)
 
 scaler = StandardScaler()
 scaler.fit(raw_feature_matrix[:train_row_end])
