@@ -40,28 +40,34 @@ Run the interactive dashboard with:
 streamlit run app.py
 ```
 
-The dashboard includes pages for loading the canonical series panel, exploring signals, fitting models, forecasting, downloading outputs, and loading autonomous-agent artifacts.
+The dashboard includes pages for loading data, exploring time series, fitting models, forecasting, refreshing downloads, and estimating superspreader-event risk.
 
-The **Agent Data** page expects the lightweight agent storage layout:
+## Superspreader event risk tool
+
+The `Superspreader Risk` Streamlit page estimates whether a candidate event could disproportionately amplify transmission for RSV, influenza, COVID-19, or another respiratory pathogen. It uses an interpretable MVP model under:
 
 ```text
-data_registry/latest/*.json          # latest pointers
-data_registry/manifests/**/*.json    # full artifact manifests
-data/features/**/*.parquet           # model-ready feature tables
-data/normalized/**/*.parquet         # normalized long-form signal tables
+src/wastewater/superspreading/
 ```
 
-A latest pointer should either be a full manifest or point to one:
+For each candidate event, the tool reports:
 
-```json
-{
-  "feature_set": "england_rsv_admissions_2w",
-  "latest_run_id": "20260702T120000Z",
-  "manifest_path": "data_registry/manifests/england_rsv_admissions_2w/20260702T120000Z.json"
-}
+```text
+Transmission Amplification Factor (TAF)
+Expected event transmission
+P(SSE), the probability of exceeding a homogeneous superspreading threshold
+90% simulated interval for secondary infections
+Risk band
+Optional regional contribution index
 ```
 
-The referenced manifest should include a `path` to a Parquet feature table. Once loaded, the Agent Data page converts the table into the same canonical long-format series panel used by the existing Explore, Model, and Forecast pages.
+The main mathematical measure is:
+
+```text
+TAF = E[secondary infections | event conditions] / E[secondary infections | baseline conditions]
+```
+
+The simulator draws infectious attendees from a binomial model and secondary infections from a negative-binomial offspring distribution, using local prevalence, R_t, event size, event conditions, and a dispersion parameter `k`. The coefficients are transparent defaults for scenario comparison; they should be calibrated with outbreak investigations or inferred event impacts before operational use.
 
 ## Run an end-to-end model
 
