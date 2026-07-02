@@ -32,6 +32,37 @@ python scripts/download_external_respiratory_sources.py
 
 The wastewater downloader continues after individual download failures and records them in `download_failures.json`. The external downloader currently fetches no-key sources that can be automated immediately, including OWID COVID data and Open-Meteo historical weather for UK nation / England-region centroids.
 
+## Streamlit dashboard
+
+Run the interactive dashboard with:
+
+```bash
+streamlit run app.py
+```
+
+The dashboard includes pages for loading the canonical series panel, exploring signals, fitting models, forecasting, downloading outputs, and loading autonomous-agent artifacts.
+
+The **Agent Data** page expects the lightweight agent storage layout:
+
+```text
+data_registry/latest/*.json          # latest pointers
+data_registry/manifests/**/*.json    # full artifact manifests
+data/features/**/*.parquet           # model-ready feature tables
+data/normalized/**/*.parquet         # normalized long-form signal tables
+```
+
+A latest pointer should either be a full manifest or point to one:
+
+```json
+{
+  "feature_set": "england_rsv_admissions_2w",
+  "latest_run_id": "20260702T120000Z",
+  "manifest_path": "data_registry/manifests/england_rsv_admissions_2w/20260702T120000Z.json"
+}
+```
+
+The referenced manifest should include a `path` to a Parquet feature table. Once loaded, the Agent Data page converts the table into the same canonical long-format series panel used by the existing Explore, Model, and Forecast pages.
+
 ## Run an end-to-end model
 
 For a command-line run that downloads accessible external data, builds the panel, trains models, and writes outputs, run:
