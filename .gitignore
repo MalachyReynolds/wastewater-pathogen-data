@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Generated data-agent artifacts
+# Keep manifests/pointers in Git only when intentionally added.
+data/raw/
+data/normalized/
+data/features/
+data/reports/
+*.parquet
+*.duckdb
+
+# DVC local state and credentials
+.dvc/tmp/
+.dvc/cache/
+.dvc/config.local
