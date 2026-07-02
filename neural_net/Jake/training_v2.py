@@ -40,6 +40,7 @@ exclude_keywords = [
     "emergencyDepartment",   # do not use ED-derived predictors when forecasting ED
     "baseline",              # often derived from historical smoothing
     "averageRolling7Day",    # smoothed versions, usually redundant
+    "Waste_water",          # temp removal
 ]
 
 feature_cols = []
